@@ -42,6 +42,22 @@
             min-height: 100vh;
         }
 
+        /* Fallback CSS to force display of main elements if Tailwind fails */
+        #app { display: flex; min-height: 100vh; }
+        #sidebar { 
+            width: 256px; /* equivalent to w-64 */
+            background-color: var(--primary-color);
+            position: fixed;
+            height: 100%;
+            z-index: 50;
+        }
+        main {
+            flex-grow: 1;
+            margin-left: 256px; /* Offset for fixed sidebar on desktop */
+            padding: 1rem;
+        }
+        /* End Fallback */
+
         /* Form elements styling */
         .form-input {
             @apply w-full p-2 border border-blue-200 rounded-lg shadow-inner focus:ring-blue-500 focus:border-blue-500;
@@ -63,6 +79,7 @@
 <body>
     
     <!-- ABSOLUTELY ESSENTIAL Loading Overlay: Fixed to ensure visibility over all layout issues -->
+    <!-- This overlay should always appear first -->
     <div id="initial-loading-message" class="fixed inset-0 bg-gray-100/70 backdrop-blur-sm flex items-center justify-center z-[9999]">
         <div class="p-10 text-center bg-white rounded-xl shadow-2xl">
             <svg class="animate-spin h-10 w-10 mx-auto text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
