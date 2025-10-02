@@ -8,6 +8,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Load Chart.js for Dashboard -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <!-- Load Prompt Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
         /* Custom Blue Theme */
         :root {
@@ -35,7 +37,7 @@
 
         /* Style for the main container */
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Prompt', sans-serif; /* เปลี่ยนเป็น Prompt */
             background-color: var(--bg-light);
             min-height: 100vh;
         }
@@ -250,9 +252,9 @@
     <script>
         // Global variables and configuration
         // *** สำคัญ: ต้องเปลี่ยน URL นี้เป็น URL ที่คุณ Deploy Google Apps Script แล้ว (ดูขั้นตอนใน SETUP_INSTRUCTIONS.md) ***
-        const API_URL = "https://script.google.com/macros/s/AKfycbwSM2iphZ_Ibp3e6IPPUzSstZc6Xe9_BOUqiPaFPz-hyasFo_gTAZJQ9GIdzivlqPx2/exec"; // Mock URL - ต้องแทนที่ด้วย URL จริงของคุณ
+        const API_URL = "https://script.google.com/macros/s/AKfycbz1234567890abcdefghijklmnopqrstuvwxyz123/exec"; // Mock URL - ต้องแทนที่ด้วย URL จริงของคุณ
         const views = ['notification', 'allocation', 'planning', 'tracking', 'dashboard'];
-        const groupOptions = ["กลุ่ม พส.", "กลุ่ม ปป.", "กลุ่ม มธ.", "กลุ่ม บส.", "กลุ่ม บท.", "กลุ่ม สป."];
+        const groupOptions = ["กลุ่ม พส.", "กลุ่ม ปป.", "กลุ่ม มธ.", "กลุ่ม บส.", "กลุ่ม บท.","กลุ่ม สป."];
         let appData = {
             notification: [],
             allocation: [],
