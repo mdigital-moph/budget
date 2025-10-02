@@ -249,7 +249,7 @@
     <!-- The actual script logic -->
     <script>
         // Global variables and configuration
-        const API_URL = "YOUR_APPS_SCRIPT_WEB_APP_URL"; // *** ต้องเปลี่ยนเป็น URL ที่ Deploy แล้ว ***
+        const API_URL = "https://script.google.com/macros/s/AKfycbwSM2iphZ_Ibp3e6IPPUzSstZc6Xe9_BOUqiPaFPz-hyasFo_gTAZJQ9GIdzivlqPx2/exec"; // *** ต้องเปลี่ยนเป็น URL ที่ Deploy แล้ว ***
         const views = ['notification', 'allocation', 'planning', 'tracking', 'dashboard'];
         const groupOptions = ["กลุ่ม พส.", "กลุ่ม ปป.", "กลุ่ม มธ.", "กลุ่ม บส.", "กลุ่ม บท.", "กลุ่ม สป."];
         let appData = {
@@ -271,7 +271,7 @@
             const maxRetries = 3;
             let lastError = null;
 
-            if (API_URL.includes("YOUR_APPS_SCRIPT_WEB_APP_URL")) {
+            if (API_URL.includes("https://script.google.com/macros/s/AKfycbwSM2iphZ_Ibp3e6IPPUzSstZc6Xe9_BOUqiPaFPz-hyasFo_gTAZJQ9GIdzivlqPx2/exec")) {
                 console.error("Please replace API_URL with your actual deployed Apps Script URL.");
                 return { success: false, message: "API URL not set." };
             }
