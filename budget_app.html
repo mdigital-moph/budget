@@ -147,7 +147,7 @@
 
                 <!-- Planning View -->
                 <section id="view-planning" class="view hidden bg-white p-6 rounded-xl shadow-lg">
-                    <h2 class="text-3xl font-bold text-primary mb-6">แผนงบประมาณ (ติดตามสถานะ)</h2>
+                    <h2 class="text-3xl font-bold text-primary mb-6">แผนงบประมาณ</h2>
                     <h3 class="text-xl font-semibold text-primary mb-4">ภาพรวมงบประมาณที่ได้รับ เทียบกับที่ใช้ไป</h3>
                     <div id="planning-message" class="mt-4 text-green-600 font-semibold"></div>
                     <div class="overflow-x-auto rounded-lg shadow-md">
@@ -249,7 +249,8 @@
     <!-- The actual script logic -->
     <script>
         // Global variables and configuration
-        const API_URL = "https://script.google.com/macros/s/AKfycbwSM2iphZ_Ibp3e6IPPUzSstZc6Xe9_BOUqiPaFPz-hyasFo_gTAZJQ9GIdzivlqPx2/exec"; // *** ต้องเปลี่ยนเป็น URL ที่ Deploy แล้ว ***
+        // *** สำคัญ: ต้องเปลี่ยน URL นี้เป็น URL ที่คุณ Deploy Google Apps Script แล้ว (ดูขั้นตอนใน SETUP_INSTRUCTIONS.md) ***
+        const API_URL = "https://script.google.com/macros/s/AKfycbwSM2iphZ_Ibp3e6IPPUzSstZc6Xe9_BOUqiPaFPz-hyasFo_gTAZJQ9GIdzivlqPx2/exec"; // Mock URL - ต้องแทนที่ด้วย URL จริงของคุณ
         const views = ['notification', 'allocation', 'planning', 'tracking', 'dashboard'];
         const groupOptions = ["กลุ่ม พส.", "กลุ่ม ปป.", "กลุ่ม มธ.", "กลุ่ม บส.", "กลุ่ม บท.", "กลุ่ม สป."];
         let appData = {
@@ -259,6 +260,7 @@
             planningSummary: [],
             lookups: { plans: [], products: [], activities: [], projectCodes: [], budgetCodes: [] }
         };
+
 
         // --- Utility Functions ---
 
@@ -271,10 +273,8 @@
             const maxRetries = 3;
             let lastError = null;
 
-            if (API_URL.includes("https://script.google.com/macros/s/AKfycbwSM2iphZ_Ibp3e6IPPUzSstZc6Xe9_BOUqiPaFPz-hyasFo_gTAZJQ9GIdzivlqPx2/exec")) {
-                console.error("Please replace API_URL with your actual deployed Apps Script URL.");
-                return { success: false, message: "API URL not set." };
-            }
+            // เนื่องจาก URL ถูกตั้งค่าเป็นค่าจำลองแล้ว เราจึงไม่จำเป็นต้องตรวจสอบ URL Placeholder อีก
+            // fetch จะดำเนินการตามปกติและล้มเหลวหาก URL ที่ตั้งไว้ไม่สามารถเชื่อมต่อได้จริง
 
             for (let i = 0; i < maxRetries; i++) {
                 try {
