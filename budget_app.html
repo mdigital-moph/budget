@@ -91,6 +91,18 @@
             
             <!-- Views Container -->
             <div id="content-container" class="space-y-8 mt-12 md:mt-0">
+                
+                <!-- NEW: Initial Loading Message (Visible by default until JS runs) -->
+                <div id="initial-loading-message" class="p-8 text-center bg-white rounded-xl shadow-lg">
+                    <svg class="animate-spin h-8 w-8 mx-auto text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p class="mt-4 text-primary font-semibold">กำลังโหลดข้อมูลและเตรียมระบบ... กรุณารอสักครู่</p>
+                    <p class="text-xs text-gray-500 mt-2">หากเห็นข้อความนี้นานกว่า 10 วินาที อาจเกิดจากปัญหาการเชื่อมต่อ API</p>
+                </div>
+                <!-- END NEW -->
+                
                 <!-- Notification View -->
                 <section id="view-notification" class="view hidden bg-white p-6 rounded-xl shadow-lg">
                     <h2 class="text-3xl font-bold text-primary mb-6">แจ้งจัดสรร (Master Data)</h2>
@@ -252,7 +264,7 @@
     <script>
         // Global variables and configuration
         // *** สำคัญ: ต้องเปลี่ยน URL นี้เป็น URL ที่คุณ Deploy Google Apps Script แล้ว (ดูขั้นตอนใน SETUP_INSTRUCTIONS.md) ***
-        const API_URL = "https://script.google.com/macros/s/AKfycbz1234567890abcdefghijklmnopqrstuvwxyz123/exec"; // Mock URL - ต้องแทนที่ด้วย URL จริงของคุณ
+        const API_URL = "https://script.google.com/macros/s/AKfycbwSM2iphZ_Ibp3e6IPPUzSstZc6Xe9_BOUqiPaFPz-hyasFo_gTAZJQ9GIdzivlqPx2/exec"; // Mock URL - ต้องแทนที่ด้วย URL จริงของคุณ
         const views = ['notification', 'allocation', 'planning', 'tracking', 'dashboard'];
         const groupOptions = ["กลุ่ม พส.", "กลุ่ม ปป.", "กลุ่ม มธ.", "กลุ่ม บส.", "กลุ่ม บท.","กลุ่ม สป."];
         let appData = {
@@ -274,9 +286,6 @@
         async function fetchAppsScript(method, data = {}) {
             const maxRetries = 3;
             let lastError = null;
-
-            // เนื่องจาก URL ถูกตั้งค่าเป็นค่าจำลองแล้ว เราจึงไม่จำเป็นต้องตรวจสอบ URL Placeholder อีก
-            // fetch จะดำเนินการตามปกติและล้มเหลวหาก URL ที่ตั้งไว้ไม่สามารถเชื่อมต่อได้จริง
 
             for (let i = 0; i < maxRetries; i++) {
                 try {
@@ -357,24 +366,39 @@
                         return a.project.localeCompare(b.project);
                     });
                 }
+                
+                // NEW: Remove loading message after successful data load
+                document.getElementById('initial-loading-message')?.classList.add('hidden');
 
                 // Re-render the current view to show the fetched data
                 renderCurrentView();
 
             } catch (e) {
                 console.error("Error loading initial data:", e);
-                // Optionally show a user-friendly error message
-                document.getElementById('content-container').innerHTML = `<div class="p-4 bg-red-100 text-red-700 rounded-lg">เกิดข้อผิดพลาดในการเชื่อมต่อกับ Google Sheet: ${e.message}</div>`;
+                // Display error and hide all views except the loading screen
+                const loadingEl = document.getElementById('initial-loading-message');
+                if (loadingEl) {
+                     loadingEl.innerHTML = `<div class="p-4 bg-red-100 text-red-700 rounded-lg">
+                        <p class="font-bold mb-2">เกิดข้อผิดพลาดในการเชื่อมต่อ/โหลดข้อมูล</p>
+                        <p>กรุณาตรวจสอบว่าคุณได้เปลี่ยน <span class="font-mono">API_URL</span> เป็น URL ที่ Deploy แล้ว และโค้ด Apps Script ทำงานได้ถูกต้อง</p>
+                        <p class="text-sm mt-1">รายละเอียดข้อผิดพลาด: ${e.message}</p>
+                    </div>`;
+                }
+                
             }
         }
 
         // --- View & Navigation Management ---
 
         function showView(viewId) {
+            // Hide all views first
             views.forEach(id => {
                 const element = document.getElementById(`view-${id}`);
                 if (element) element.classList.add('hidden');
             });
+
+            // Hide the initial loading message
+            document.getElementById('initial-loading-message')?.classList.add('hidden');
 
             const currentView = document.getElementById(`view-${viewId}`);
             if (currentView) currentView.classList.remove('hidden');
@@ -386,10 +410,11 @@
         }
 
         function renderCurrentView() {
+            // Find the active view ID (the one without 'hidden')
             const activeView = views.find(id => !document.getElementById(`view-${id}`).classList.contains('hidden'));
             if (!activeView) return;
 
-            // Reset forms
+            // Reset forms and render specific content
             if (activeView === 'notification') renderNotificationView();
             if (activeView === 'allocation') renderAllocationView();
             if (activeView === 'planning') renderPlanningView();
@@ -860,7 +885,10 @@
             // Function to generate CSV data (simplest client-side export)
             const data = appData.planningSummary;
             if (data.length === 0) {
-                alert('ไม่พบข้อมูลที่จะส่งออก');
+                // IMPORTANT: Use a custom UI alert instead of native alert()
+                const msg = 'ไม่พบข้อมูลที่จะส่งออก';
+                // You would typically implement a modal here. For simplicity in this environment:
+                console.warn(msg);
                 return;
             }
 
@@ -905,8 +933,14 @@
 
         // --- Initialization ---
         window.onload = function() {
-            loadInitialData();
-            showView('planning'); // Default view
+            // Wait for initial data loading to complete before rendering the main UI
+            loadInitialData().then(() => {
+                // If loading was successful, show the default view (Planning)
+                showView('planning');
+            }).catch(() => {
+                // If loading failed (the catch block inside loadInitialData handled the display), 
+                // we do nothing more, leaving the error message visible.
+            });
         };
 
     </script>
