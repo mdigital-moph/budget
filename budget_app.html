@@ -89,19 +89,19 @@
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
             </button>
             
-            <!-- Loading Message (Visible initially, hidden on loadInitialData success) -->
-            <div id="initial-loading-message" class="p-8 text-center bg-white rounded-xl shadow-lg mt-12 md:mt-0">
-                <svg class="animate-spin h-8 w-8 mx-auto text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <p class="mt-4 text-primary font-semibold">กำลังโหลดข้อมูลและเตรียมระบบ... กรุณารอสักครู่</p>
-                <p class="text-xs text-gray-500 mt-2">หากเห็นข้อความนี้นานกว่า 10 วินาที อาจเกิดจากปัญหาการเชื่อมต่อ API</p>
-            </div>
-
-            <!-- Views Container (Hidden initially, shown on loadInitialData success) -->
-            <div id="content-container" class="space-y-8 hidden">
+            <!-- Views Container (Always visible now to ensure structure is shown) -->
+            <div id="content-container" class="space-y-8 mt-12 md:mt-0">
                 
+                <!-- Loading/Error Placeholder (Visible by default) -->
+                <div id="initial-loading-message" class="p-8 text-center bg-white rounded-xl shadow-lg">
+                    <svg class="animate-spin h-8 w-8 mx-auto text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p class="mt-4 text-primary font-semibold">กำลังโหลดข้อมูลและเตรียมระบบ... กรุณารอสักครู่</p>
+                    <p class="text-xs text-gray-500 mt-2">หากเห็นข้อความนี้นาน อาจเกิดจากปัญหาการเชื่อมต่อ API</p>
+                </div>
+
                 <!-- Notification View -->
                 <section id="view-notification" class="view hidden bg-white p-6 rounded-xl shadow-lg">
                     <h2 class="text-3xl font-bold text-primary mb-6">แจ้งจัดสรร (Master Data)</h2>
@@ -366,15 +366,15 @@
                     });
                 }
                 
-                // NEW: Show the main content container
-                document.getElementById('content-container')?.classList.remove('hidden');
+                // Hide the loading message after successful data load
+                document.getElementById('initial-loading-message')?.classList.add('hidden');
                 
                 // Re-render the current view to show the fetched data
                 renderCurrentView();
 
             } catch (e) {
                 console.error("Error loading initial data:", e);
-                // Display error and hide all views except the loading screen
+                // Display error (loading element remains visible with error content)
                 const loadingEl = document.getElementById('initial-loading-message');
                 if (loadingEl) {
                      loadingEl.innerHTML = `<div class="p-4 bg-red-100 text-red-700 rounded-lg">
@@ -940,6 +940,8 @@
             }).catch(() => {
                 // If loading failed, the error message remains visible on the loading screen
                 console.log("Initialization failed. Displaying error message.");
+                // Ensure default view is still hidden if data load failed
+                views.forEach(id => document.getElementById(`view-${id}`)?.classList.add('hidden'));
             });
         };
 
