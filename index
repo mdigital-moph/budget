@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบควบคุมงบประมาณ</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Chart.js for Dashboard -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <style>
+        /* Custom Blue Theme */
+        :root {
+            --primary-color: #3b82f6; /* Blue 500 */
+            --primary-dark: #2563eb; /* Blue 600 */
+            --bg-light: #eff6ff; /* Blue 50 */
+        }
+        .text-primary { color: var(--primary-color); }
+        .bg-primary { background-color: var(--primary-color); }
+        .hover-primary:hover { background-color: var(--primary-dark); }
+
+        /* Ensure smooth transitions */
+        * {
+            transition: all 0.2s ease-in-out;
+        }
+
+        /* Hide scrollbar for cleaner look, but allow scrolling */
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+
+        /* Style for the main container */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-light);
+            min-height: 100vh;
+        }
+
+        /* Form elements styling */
+        .form-input {
+            @apply w-full p-2 border border-blue-200 rounded-lg shadow-inner focus:ring-blue-500 focus:border-blue-500;
+        }
+
+        /* Table styling */
+        .budget-table th {
+            @apply bg-primary text-white p-3 text-left uppercase text-sm tracking-wider;
+        }
+        .budget-table td {
+            @apply p-3 border-b border-blue-100 text-sm;
+        }
+        .budget-table tr:hover {
+            @apply bg-blue-100;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="app" class="flex min-h-screen">
+        <!-- Sidebar Navigation -->
+        <nav id="sidebar" class="w-64 bg-primary text-white p-4 space-y-4 fixed h-full flex flex-col md:relative transform -translate-x-full md:translate-x-0 transition-transform duration-300 z-50">
+            <h1 class="text-2xl font-bold border-b border-blue-400 pb-3 mb-4">ระบบควบคุมงบประมาณ</h1>
+            <button id="close-menu" class="absolute top-2 right-2 text-white md:hidden">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            
+            <a href="#" onclick="showView('notification')" class="nav-item p-3 rounded-lg hover-primary hover:bg-blue-600 transition duration-150">แจ้งจัดสรร</a>
+            <a href="#" onclick="showView('allocation')" class="nav-item p-3 rounded-lg hover-primary hover:bg-blue-600 transition duration-150">จัดสรรงบประมาณ</a>
+            <a href="#" onclick="showView('planning')" class="nav-item p-3 rounded-lg hover-primary hover:bg-blue-600 transition duration-150">แผนงบประมาณ</a>
+            <a href="#" onclick="showView('tracking')" class="nav-item p-3 rounded-lg hover-primary hover:bg-blue-600 transition duration-150">คุมงบประมาณ</a>
+            <a href="#" onclick="showView('dashboard')" class="nav-item p-3 rounded-lg hover-primary hover:bg-blue-600 transition duration-150">Dashboard</a>
+
+            <div class="mt-auto pt-4 border-t border-blue-400">
+                <button onclick="exportToExcel()" class="w-full p-3 bg-white text-primary font-semibold rounded-lg shadow-md hover:bg-blue-100">
+                    ส่งออกข้อมูล (Excel)
+                </button>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 p-4 md:p-8 overflow-y-auto">
+            <button id="open-menu" class="fixed top-4 left-4 p-2 bg-primary rounded-lg text-white md:hidden z-40">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+            </button>
+            
+            <!-- Views Container -->
+            <div id="content-container" class="space-y-8 mt-12 md:mt-0">
+                <!-- Notification View -->
+                <section id="view-notification" class="view hidden bg-white p-6 rounded-xl shadow-lg">
+                    <h2 class="text-3xl font-bold text-primary mb-6">แจ้งจัดสรร (Master Data)</h2>
+                    <form id="notification-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <label class="block">แผนงาน: <input type="text" id="noti-plan" class="form-input" required></label>
+                        <label class="block">ผลผลิต/โครงการ: <input type="text" id="noti-product-project" class="form-input" required></label>
+                        <label class="block">กิจกรรมหลัก: <input type="text" id="noti-main-activity" class="form-input" required></label>
+                        <label class="block">รหัสโครงการ: <input type="text" id="noti-project-code" class="form-input" required></label>
+                        <label class="block">รหัสงบประมาณ: <input type="text" id="noti-budget-code" class="form-input" required></label>
+                        <button type="submit" class="col-span-1 md:col-span-2 p-3 bg-primary text-white rounded-lg font-semibold hover-primary shadow-md">บันทึกข้อมูลแจ้งจัดสรร</button>
+                    </form>
+                    <div id="notification-message" class="mt-4 text-green-600 font-semibold"></div>
+                    <h3 class="text-xl font-semibold text-primary mt-8 mb-4">ข้อมูลแจ้งจัดสรรทั้งหมด</h3>
+                    <div class="overflow-x-auto rounded-lg shadow-md">
+                        <table class="w-full budget-table">
+                            <thead><tr><th>แผนงาน</th><th>ผลผลิต/โครงการ</th><th>กิจกรรมหลัก</th><th>รหัสโครงการ</th><th>รหัสงบประมาณ</th></tr></thead>
+                            <tbody id="notification-list"><tr><td colspan="5" class="text-center">กำลังโหลดข้อมูล...</td></tr></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Allocation View -->
+                <section id="view-allocation" class="view hidden bg-white p-6 rounded-xl shadow-lg">
+                    <h2 class="text-3xl font-bold text-primary mb-6">จัดสรรงบประมาณ</h2>
+                    <form id="allocation-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input type="hidden" id="allo-row-id">
+                        <label class="block">แผนงาน: <select id="allo-plan" class="form-input" required></select></label>
+                        <label class="block">ผลผลิต/โครงการ: <select id="allo-product-project" class="form-input" required></select></label>
+                        <label class="block">กิจกรรมหลัก: <select id="allo-main-activity" class="form-input" required></select></label>
+                        <label class="block">รหัสโครงการ: <select id="allo-project-code" class="form-input" required></select></label>
+                        <label class="block">รหัสงบประมาณ: <select id="allo-budget-code" class="form-input" required></select></label>
+                        <label class="block">โครงการ (ชื่อ): <input type="text" id="allo-project-name" class="form-input" required></label>
+                        <label class="block">งบประมาณที่จัดสรร (บาท): <input type="number" id="allo-budget-amount" class="form-input" required min="0"></label>
+                        <label class="block">กลุ่มงาน: 
+                            <select id="allo-group" class="form-input" required>
+                                <option value="">--- เลือกกลุ่มงาน ---</option>
+                                <option value="กลุ่ม พส.">กลุ่ม พส.</option>
+                                <option value="กลุ่ม ปป.">กลุ่ม ปป.</option>
+                                <option value="กลุ่ม มธ.">กลุ่ม มธ.</option>
+                                <option value="กลุ่ม บส.">กลุ่ม บส.</option>
+                                <option value="กลุ่ม บท.">กลุ่ม บท.</option>
+                                <option value="กลุ่ม สป.">กลุ่ม สป.</option>
+                            </select>
+                        </label>
+                        <button type="submit" class="col-span-1 md:col-span-2 p-3 bg-primary text-white rounded-lg font-semibold hover-primary shadow-md">บันทึก/แก้ไข การจัดสรรงบ</button>
+                    </form>
+                    <div id="allocation-message" class="mt-4 text-green-600 font-semibold"></div>
+                    <h3 class="text-xl font-semibold text-primary mt-8 mb-4">ตารางสรุปการจัดสรรงบประมาณ</h3>
+                    <div class="overflow-x-auto rounded-lg shadow-md">
+                        <table class="w-full budget-table">
+                            <thead><tr><th>แผนงาน</th><th>โครงการ</th><th>กลุ่มงาน</th><th>รหัสโครงการ</th><th>งบประมาณ (บาท)</th><th>แก้ไข</th></tr></thead>
+                            <tbody id="allocation-list"><tr><td colspan="6" class="text-center">กำลังโหลดข้อมูล...</td></tr></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Planning View -->
+                <section id="view-planning" class="view hidden bg-white p-6 rounded-xl shadow-lg">
+                    <h2 class="text-3xl font-bold text-primary mb-6">แผนงบประมาณ (ติดตามสถานะ)</h2>
+                    <h3 class="text-xl font-semibold text-primary mb-4">ภาพรวมงบประมาณที่ได้รับ เทียบกับที่ใช้ไป</h3>
+                    <div id="planning-message" class="mt-4 text-green-600 font-semibold"></div>
+                    <div class="overflow-x-auto rounded-lg shadow-md">
+                        <table class="w-full budget-table">
+                            <thead>
+                                <tr>
+                                    <th>กลุ่มงาน</th>
+                                    <th>ผลผลิต/โครงการ</th>
+                                    <th>กิจกรรมหลัก</th>
+                                    <th>โครงการ</th>
+                                    <th>รหัสโครงการ</th>
+                                    <th class="text-right">งบประมาณที่ได้รับ (บาท)</th>
+                                    <th class="text-right">งบประมาณใช้จริง (บาท)</th>
+                                    <th class="text-right">งบประมาณคงเหลือ (บาท)</th>
+                                    <th>แก้ไข</th>
+                                </tr>
+                            </thead>
+                            <tbody id="planning-list"><tr><td colspan="9" class="text-center">กำลังโหลดข้อมูล...</td></tr></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Tracking View -->
+                <section id="view-tracking" class="view hidden bg-white p-6 rounded-xl shadow-lg">
+                    <h2 class="text-3xl font-bold text-primary mb-6">คุมงบประมาณ (บันทึกรายจ่าย)</h2>
+                    <form id="tracking-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input type="hidden" id="track-row-id">
+                        <label class="block">โครงการ: <select id="track-project-name" class="form-input" required></select></label>
+                        <label class="block">กิจกรรมที่ดำเนินการ: <input type="text" id="track-activity" class="form-input" required></label>
+                        <label class="block">กลุ่มงาน: 
+                            <select id="track-group" class="form-input" required>
+                                <option value="">--- เลือกกลุ่มงาน ---</option>
+                                <option value="กลุ่ม พส.">กลุ่ม พส.</option>
+                                <option value="กลุ่ม ปป.">กลุ่ม ปป.</option>
+                                <option value="กลุ่ม มธ.">กลุ่ม มธ.</option>
+                                <option value="กลุ่ม บส.">กลุ่ม บส.</option>
+                                <option value="กลุ่ม บท.">กลุ่ม บท.</option>
+                                <option value="กลุ่ม สป.">กลุ่ม สป.</option>
+                            </select>
+                        </label>
+                        <label class="block">หมวดค่าใช้จ่าย: 
+                            <select id="track-expense-category" class="form-input" required>
+                                <option value="">--- เลือกหมวดค่าใช้จ่าย ---</option>
+                                <option value="ค่าจ้างเหมาบุคลากร">ค่าจ้างเหมาบุคลากร</option>
+                                <option value="ลงทะเบียนอบรม">ลงทะเบียนอบรม</option>
+                                <option value="เดินทางไปราชการ">เดินทางไปราชการ</option>
+                                <option value="ประชุมราชการ">ประชุมราชการ</option>
+                                <option value="ค่าโทรศัพท์">ค่าโทรศัพท์</option>
+                                <option value="ค่ากระดาษ หมึกPrinter">ค่ากระดาษ หมึกPrinter</option>
+                                <option value="ค่าเช่าห้องประชุม">ค่าเช่าห้องประชุม</option>
+                                <option value="OT">OT</option>
+                                <option value="อื่น ๆ">อื่น ๆ</option>
+                            </select>
+                        </label>
+                        <label class="block">ผูกพัน/ตัดงบ (บาท): <input type="number" id="track-commitment" class="form-input" required min="0" value="0"></label>
+                        <label class="block">งบประมาณใช้จริง (บาท): <input type="number" id="track-actual-expense" class="form-input" required min="0" value="0"></label>
+                        <div class="col-span-1 md:col-span-2 p-3 bg-blue-100 rounded-lg shadow-inner">
+                            คงเหลือหลังทำรายการ: <span id="track-remaining" class="font-bold text-lg text-primary">0.00</span> บาท
+                        </div>
+                        <button type="submit" class="col-span-1 md:col-span-2 p-3 bg-primary text-white rounded-lg font-semibold hover-primary shadow-md">บันทึก/แก้ไข รายจ่าย</button>
+                    </form>
+                    <div id="tracking-message" class="mt-4 text-green-600 font-semibold"></div>
+
+                    <h3 class="text-xl font-semibold text-primary mt-8 mb-4">ตารางสรุปข้อมูลคุมงบประมาณ (แยกตามกลุ่มงาน)</h3>
+                    <div id="tracking-summary-container">
+                        <!-- Summary tables will be injected here by renderTrackingSummaryTable -->
+                        <div class="text-center">กำลังโหลดข้อมูล...</div>
+                    </div>
+                </section>
+
+                <!-- Dashboard View -->
+                <section id="view-dashboard" class="view hidden bg-white p-6 rounded-xl shadow-lg">
+                    <h2 class="text-3xl font-bold text-primary mb-6">Dashboard สรุปภาพรวมงบประมาณ</h2>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Chart 1: Budget Type -->
+                        <div class="bg-blue-50 p-4 rounded-lg shadow-md lg:col-span-3">
+                            <h3 class="text-xl font-semibold text-primary mb-3">1. งบประมาณที่ได้รับ vs งบประมาณที่ใช้ไป (รวมทุกโครงการ)</h3>
+                            <canvas id="chart-budget-type" height="150"></canvas>
+                        </div>
+                        
+                        <!-- Chart 2: Group -->
+                        <div class="bg-blue-50 p-4 rounded-lg shadow-md lg:col-span-2">
+                            <h3 class="text-xl font-semibold text-primary mb-3">2. งบประมาณแยกตามกลุ่มงาน</h3>
+                            <canvas id="chart-group" height="200"></canvas>
+                        </div>
+
+                        <!-- Chart 3: Plan -->
+                        <div class="bg-blue-50 p-4 rounded-lg shadow-md">
+                            <h3 class="text-xl font-semibold text-primary mb-3">3. งบประมาณแยกตามแผนงาน</h3>
+                            <canvas id="chart-plan" height="300"></canvas>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- The actual script logic -->
+    <script>
+        // Global variables and configuration
+        const API_URL = "YOUR_APPS_SCRIPT_WEB_APP_URL"; // *** ต้องเปลี่ยนเป็น URL ที่ Deploy แล้ว ***
+        const views = ['notification', 'allocation', 'planning', 'tracking', 'dashboard'];
+        const groupOptions = ["กลุ่ม พส.", "กลุ่ม ปป.", "กลุ่ม มธ.", "กลุ่ม บส.", "กลุ่ม บท.", "กลุ่ม สป."];
+        let appData = {
+            notification: [],
+            allocation: [],
+            tracking: [],
+            planningSummary: [],
+            lookups: { plans: [], products: [], activities: [], projectCodes: [], budgetCodes: [] }
+        };
+
+        // --- Utility Functions ---
+
+        /**
+         * Simulates fetch with exponential backoff for robustness.
+         * @param {string} method - The function name in Apps Script (e.g., 'getPlanningData').
+         * @param {object} data - Payload to send.
+         */
+        async function fetchAppsScript(method, data = {}) {
+            const maxRetries = 3;
+            let lastError = null;
+
+            if (API_URL.includes("YOUR_APPS_SCRIPT_WEB_APP_URL")) {
+                console.error("Please replace API_URL with your actual deployed Apps Script URL.");
+                return { success: false, message: "API URL not set." };
+            }
+
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(API_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: `method=${method}&data=${encodeURIComponent(JSON.stringify(data))}`
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const resultText = await response.text();
+                    let result;
+                    try {
+                        result = JSON.parse(resultText);
+                    } catch (e) {
+                        console.error("Failed to parse JSON response:", resultText, e);
+                        return { success: false, message: "Response error: Not valid JSON." };
+                    }
+                    
+                    if (result.success === false) {
+                        console.error(`Apps Script Error for ${method}:`, result.message);
+                        lastError = result.message;
+                        throw new Error(result.message);
+                    }
+                    
+                    return result;
+
+                } catch (error) {
+                    lastError = error;
+                    console.warn(`Attempt ${i + 1} failed for ${method}:`, error);
+                    if (i < maxRetries - 1) {
+                        const delay = Math.pow(2, i) * 1000;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    }
+                }
+            }
+            return { success: false, message: `Failed to connect/process after ${maxRetries} attempts. Last error: ${lastError}` };
+        }
+
+        // --- Data Loading & Initialization ---
+
+        async function loadInitialData() {
+            try {
+                // 1. Fetch Lookups (Master Data & Notification)
+                const lookupRes = await fetchAppsScript('getLookupData');
+                if (lookupRes.success) {
+                    appData.notification = lookupRes.data.notifications;
+                    appData.lookups.plans = [...new Set(lookupRes.data.notifications.map(n => n.plan))];
+                    appData.lookups.products = [...new Set(lookupRes.data.notifications.map(n => n.productProject))];
+                    appData.lookups.activities = [...new Set(lookupRes.data.notifications.map(n => n.mainActivity))];
+                    appData.lookups.projectCodes = [...new Set(lookupRes.data.notifications.map(n => n.projectCode))];
+                    appData.lookups.budgetCodes = [...new Set(lookupRes.data.notifications.map(n => n.budgetCode))];
+                }
+
+                // 2. Fetch Allocations
+                const alloRes = await fetchAppsScript('getAllocations');
+                if (alloRes.success) {
+                    appData.allocation = alloRes.data;
+                }
+
+                // 3. Fetch Tracking
+                const trackingRes = await fetchAppsScript('getBudgetTracking');
+                if (trackingRes.success) {
+                    appData.tracking = trackingRes.data;
+                }
+
+                // 4. Fetch Planning Summary (Calculated Data)
+                const planningRes = await fetchAppsScript('getPlanningData');
+                if (planningRes.success) {
+                    // Sort by Group -> Product/Project -> Main Activity -> Project
+                    appData.planningSummary = planningRes.data.sort((a, b) => {
+                        if (a.group !== b.group) return a.group.localeCompare(b.group);
+                        if (a.productProject !== b.productProject) return a.productProject.localeCompare(b.productProject);
+                        if (a.mainActivity !== b.mainActivity) return a.mainActivity.localeCompare(b.mainActivity);
+                        return a.project.localeCompare(b.project);
+                    });
+                }
+
+                // Re-render the current view to show the fetched data
+                renderCurrentView();
+
+            } catch (e) {
+                console.error("Error loading initial data:", e);
+                // Optionally show a user-friendly error message
+                document.getElementById('content-container').innerHTML = `<div class="p-4 bg-red-100 text-red-700 rounded-lg">เกิดข้อผิดพลาดในการเชื่อมต่อกับ Google Sheet: ${e.message}</div>`;
+            }
+        }
+
+        // --- View & Navigation Management ---
+
+        function showView(viewId) {
+            views.forEach(id => {
+                const element = document.getElementById(`view-${id}`);
+                if (element) element.classList.add('hidden');
+            });
+
+            const currentView = document.getElementById(`view-${viewId}`);
+            if (currentView) currentView.classList.remove('hidden');
+
+            document.getElementById('sidebar').classList.add('-translate-x-full');
+            document.getElementById('open-menu').classList.remove('hidden');
+
+            renderCurrentView();
+        }
+
+        function renderCurrentView() {
+            const activeView = views.find(id => !document.getElementById(`view-${id}`).classList.contains('hidden'));
+            if (!activeView) return;
+
+            // Reset forms
+            if (activeView === 'notification') renderNotificationView();
+            if (activeView === 'allocation') renderAllocationView();
+            if (activeView === 'planning') renderPlanningView();
+            if (activeView === 'tracking') renderTrackingView();
+            if (activeView === 'dashboard') renderDashboardView();
+        }
+
+        // --- Render Functions for Each View ---
+
+        function renderNotificationView() {
+            // Render the master data table
+            const listEl = document.getElementById('notification-list');
+            listEl.innerHTML = '';
+            appData.notification.forEach(item => {
+                const row = listEl.insertRow();
+                row.insertCell().textContent = item.plan;
+                row.insertCell().textContent = item.productProject;
+                row.insertCell().textContent = item.mainActivity;
+                row.insertCell().textContent = item.projectCode;
+                row.insertCell().textContent = item.budgetCode;
+            });
+            if (appData.notification.length === 0) {
+                listEl.innerHTML = `<tr><td colspan="5" class="text-center p-4 text-gray-500">ยังไม่มีข้อมูลแจ้งจัดสรร</td></tr>`;
+            }
+        }
+
+        function populateAllocationLookups() {
+            const fields = {
+                'allo-plan': appData.lookups.plans,
+                'allo-product-project': appData.lookups.products,
+                'allo-main-activity': appData.lookups.activities,
+                'allo-project-code': appData.lookups.projectCodes,
+                'allo-budget-code': appData.lookups.budgetCodes,
+            };
+
+            for (const id in fields) {
+                const selectEl = document.getElementById(id);
+                selectEl.innerHTML = '<option value="">--- เลือกข้อมูล ---</option>';
+                fields[id].forEach(value => {
+                    const option = document.createElement('option');
+                    option.value = value;
+                    option.textContent = value;
+                    selectEl.appendChild(option);
+                });
+            }
+        }
+
+        function renderAllocationView() {
+            populateAllocationLookups();
+            
+            // Render the allocation table
+            const listEl = document.getElementById('allocation-list');
+            listEl.innerHTML = '';
+            appData.allocation.forEach(item => {
+                const row = listEl.insertRow();
+                row.insertCell().textContent = item.plan;
+                row.insertCell().textContent = item.projectName;
+                row.insertCell().textContent = item.group;
+                row.insertCell().textContent = item.projectCode;
+                row.insertCell().textContent = parseFloat(item.budgetAmount).toLocaleString('th-TH', { minimumFractionDigits: 2 });
+                
+                const editCell = row.insertCell();
+                const editBtn = document.createElement('button');
+                editBtn.textContent = 'แก้ไข';
+                editBtn.className = 'text-primary hover:text-blue-700 font-semibold';
+                editBtn.onclick = () => loadAllocationForEdit(item);
+                editCell.appendChild(editBtn);
+            });
+            if (appData.allocation.length === 0) {
+                listEl.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-500">ยังไม่มีข้อมูลจัดสรรงบประมาณ</td></tr>`;
+            }
+        }
+
+        function loadAllocationForEdit(item) {
+            document.getElementById('allo-row-id').value = item.rowId; // Apps Script row ID
+            document.getElementById('allo-plan').value = item.plan;
+            document.getElementById('allo-product-project').value = item.productProject;
+            document.getElementById('allo-main-activity').value = item.mainActivity;
+            document.getElementById('allo-project-code').value = item.projectCode;
+            document.getElementById('allo-budget-code').value = item.budgetCode;
+            document.getElementById('allo-project-name').value = item.projectName;
+            document.getElementById('allo-budget-amount').value = item.budgetAmount;
+            document.getElementById('allo-group').value = item.group;
+            document.getElementById('allocation-message').textContent = 'กำลังแก้ไขข้อมูลแถวที่: ' + item.rowId;
+        }
+
+        function renderPlanningView() {
+            const listEl = document.getElementById('planning-list');
+            listEl.innerHTML = '';
+
+            appData.planningSummary.forEach(item => {
+                const remaining = item.receivedBudget - item.actualUsed;
+                const row = listEl.insertRow();
+                
+                row.insertCell().textContent = item.group;
+                row.insertCell().textContent = item.productProject;
+                row.insertCell().textContent = item.mainActivity;
+                row.insertCell().textContent = item.project;
+                row.insertCell().textContent = item.projectCode;
+                
+                row.insertCell().textContent = item.receivedBudget.toLocaleString('th-TH', { minimumFractionDigits: 2 });
+                row.cells[5].className = 'text-right font-medium';
+
+                row.insertCell().textContent = item.actualUsed.toLocaleString('th-TH', { minimumFractionDigits: 2 });
+                row.cells[6].className = 'text-right text-red-600 font-medium';
+
+                row.insertCell().textContent = remaining.toLocaleString('th-TH', { minimumFractionDigits: 2 });
+                row.cells[7].className = `text-right font-bold ${remaining < 0 ? 'text-red-800' : 'text-green-600'}`;
+
+                const editCell = row.insertCell();
+                const editBtn = document.createElement('button');
+                editBtn.textContent = 'ดู/คุมงบ';
+                editBtn.className = 'text-primary hover:text-blue-700 font-semibold';
+                editBtn.onclick = () => {
+                    document.getElementById('track-project-name').value = item.project;
+                    showView('tracking');
+                };
+                editCell.appendChild(editBtn);
+            });
+            if (appData.planningSummary.length === 0) {
+                listEl.innerHTML = `<tr><td colspan="9" class="text-center p-4 text-gray-500">ยังไม่มีข้อมูลในแผนงบประมาณ</td></tr>`;
+            }
+        }
+
+        function populateTrackingLookups() {
+            const projectSelect = document.getElementById('track-project-name');
+            projectSelect.innerHTML = '<option value="">--- เลือกโครงการ ---</option>';
+            const projects = [...new Set(appData.allocation.map(a => a.projectName))];
+            
+            projects.forEach(p => {
+                const option = document.createElement('option');
+                option.value = p;
+                option.textContent = p;
+                projectSelect.appendChild(option);
+            });
+        }
+
+        function renderTrackingView() {
+            populateTrackingLookups();
+            renderTrackingSummaryTable();
+        }
+
+        function renderTrackingSummaryTable() {
+            const container = document.getElementById('tracking-summary-container');
+            container.innerHTML = '';
+            
+            const summaryByGroup = appData.tracking.reduce((acc, curr) => {
+                const group = curr.group || 'N/A';
+                const project = curr.project || 'N/A';
+                const actual = parseFloat(curr.actualExpense) || 0;
+                
+                // Get received budget from planningSummary or allocation data (needs lookup)
+                const allocationItem = appData.allocation.find(a => a.projectName === project);
+                const received = parseFloat(allocationItem?.budgetAmount || 0);
+
+                if (!acc[group]) acc[group] = { totalReceived: 0, totalUsed: 0, projects: {} };
+                if (!acc[group].projects[project]) acc[group].projects[project] = {
+                    received: received,
+                    used: 0,
+                    activities: [],
+                    records: []
+                };
+
+                acc[group].projects[project].used += actual;
+                acc[group].projects[project].records.push(curr);
+                
+                return acc;
+            }, {});
+
+            // Add all allocations, even if tracking is 0
+            appData.allocation.forEach(allo => {
+                const group = allo.group || 'N/A';
+                const project = allo.projectName;
+                const received = parseFloat(allo.budgetAmount);
+
+                if (!summaryByGroup[group]) summaryByGroup[group] = { totalReceived: 0, totalUsed: 0, projects: {} };
+                if (!summaryByGroup[group].projects[project]) summaryByGroup[group].projects[project] = {
+                    received: received,
+                    used: 0,
+                    activities: [],
+                    records: []
+                };
+            });
+
+            // Calculate totals and render HTML
+            for (const group in summaryByGroup) {
+                const groupData = summaryByGroup[group];
+                groupData.totalReceived = Object.values(groupData.projects).reduce((sum, p) => sum + p.received, 0);
+                groupData.totalUsed = Object.values(groupData.projects).reduce((sum, p) => sum + p.used, 0);
+
+                let groupHtml = `
+                    <div class="mb-8 p-6 bg-blue-50 rounded-xl shadow-lg">
+                        <h4 class="text-2xl font-bold text-primary mb-4 border-b pb-2">${group}</h4>
+                        <div class="overflow-x-auto rounded-lg shadow-md">
+                            <table class="w-full budget-table text-left">
+                                <thead>
+                                    <tr>
+                                        <th>โครงการ</th>
+                                        <th>กิจกรรมย่อย</th>
+                                        <th class="text-right">งบที่ได้รับ (บาท)</th>
+                                        <th class="text-right">งบที่ใช้ไป (บาท)</th>
+                                        <th class="text-right">งบคงเหลือ (บาท)</th>
+                                        <th class="text-right">ร้อยละใช้จ่าย (%)</th>
+                                        <th>แก้ไข</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                `;
+
+                for (const project in groupData.projects) {
+                    const pData = groupData.projects[project];
+                    const remaining = pData.received - pData.used;
+                    const percentUsed = pData.received > 0 ? ((pData.used / pData.received) * 100).toFixed(2) : 0;
+                    
+                    // Display project summary row
+                    groupHtml += `
+                        <tr class="bg-blue-100 font-semibold">
+                            <td class="sticky left-0">${project}</td>
+                            <td>ภาพรวม</td>
+                            <td class="text-right">${pData.received.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
+                            <td class="text-right text-red-600">${pData.used.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
+                            <td class="text-right ${remaining < 0 ? 'text-red-800' : 'text-green-600'}">${remaining.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
+                            <td class="text-right">${percentUsed}%</td>
+                            <td></td>
+                        </tr>
+                    `;
+
+                    // Display detailed activity records
+                    pData.records.forEach(rec => {
+                        groupHtml += `
+                            <tr class="text-sm">
+                                <td></td>
+                                <td>${rec.activity} (${rec.expenseCategory})</td>
+                                <td class="text-right">-</td>
+                                <td class="text-right">${parseFloat(rec.actualExpense).toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
+                                <td class="text-right"></td>
+                                <td class="text-right"></td>
+                                <td><button onclick="loadTrackingForEdit(${rec.rowId})" class="text-blue-500 hover:text-blue-700">แก้ไข</button></td>
+                            </tr>
+                        `;
+                    });
+                }
+                
+                // Group Total Row
+                const groupRemaining = groupData.totalReceived - groupData.totalUsed;
+                const groupPercent = groupData.totalReceived > 0 ? ((groupData.totalUsed / groupData.totalReceived) * 100).toFixed(2) : 0;
+                groupHtml += `
+                    <tr class="bg-primary text-white font-bold text-lg">
+                        <td colspan="2">รวมกลุ่มงาน ${group}</td>
+                        <td class="text-right">${groupData.totalReceived.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
+                        <td class="text-right">${groupData.totalUsed.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
+                        <td class="text-right">${groupRemaining.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
+                        <td class="text-right">${groupPercent}%</td>
+                        <td></td>
+                    </tr>
+                    </tbody></table></div></div>`;
+                container.innerHTML += groupHtml;
+            }
+            if (Object.keys(summaryByGroup).length === 0) {
+                container.innerHTML = `<div class="text-center p-4 text-gray-500">ยังไม่มีข้อมูลคุมงบประมาณ</div>`;
+            }
+        }
+
+        function loadTrackingForEdit(rowId) {
+            const record = appData.tracking.find(r => r.rowId === rowId.toString());
+            if (!record) return;
+
+            document.getElementById('track-row-id').value = record.rowId;
+            document.getElementById('track-project-name').value = record.project;
+            document.getElementById('track-activity').value = record.activity;
+            document.getElementById('track-group').value = record.group;
+            document.getElementById('track-expense-category').value = record.expenseCategory;
+            document.getElementById('track-commitment').value = record.commitment || 0;
+            document.getElementById('track-actual-expense').value = record.actualExpense || 0;
+            document.getElementById('tracking-message').textContent = 'กำลังแก้ไขข้อมูลแถวที่: ' + record.rowId;
+
+            // Recalculate remaining immediately after load
+            calculateTrackingRemaining();
+        }
+
+        function calculateTrackingRemaining() {
+            const commitment = parseFloat(document.getElementById('track-commitment').value) || 0;
+            const actual = parseFloat(document.getElementById('track-actual-expense').value) || 0;
+            const remaining = commitment - actual;
+            document.getElementById('track-remaining').textContent = remaining.toLocaleString('th-TH', { minimumFractionDigits: 2 });
+            document.getElementById('track-remaining').className = `font-bold text-lg ${remaining < 0 ? 'text-red-600' : 'text-green-600'}`;
+        }
+
+        let chartInstances = {}; // Store Chart.js instances
+
+        function renderDashboardView() {
+            // Destroy existing charts to prevent duplication
+            for (const key in chartInstances) {
+                if (chartInstances[key]) {
+                    chartInstances[key].destroy();
+                }
+            }
+            chartInstances = {};
+
+            // 1. Prepare data for Chart 1: Budget Type
+            const totalReceived = appData.planningSummary.reduce((sum, p) => sum + p.receivedBudget, 0);
+            const totalUsed = appData.planningSummary.reduce((sum, p) => sum + p.actualUsed, 0);
+
+            chartInstances['budget-type'] = new Chart(document.getElementById('chart-budget-type'), {
+                type: 'bar',
+                data: {
+                    labels: ['งบประมาณรวม'],
+                    datasets: [
+                        { label: 'งบที่ได้รับ', data: [totalReceived], backgroundColor: 'rgba(59, 130, 246, 0.8)' },
+                        { label: 'งบที่ใช้ไป', data: [totalUsed], backgroundColor: 'rgba(239, 68, 68, 0.8)' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: { y: { beginAtZero: true } },
+                    plugins: { legend: { position: 'top' } }
+                }
+            });
+
+            // 2. Prepare data for Chart 2: Group
+            const groupData = appData.planningSummary.reduce((acc, curr) => {
+                const group = curr.group || 'N/A';
+                acc[group] = acc[group] || { received: 0, used: 0 };
+                acc[group].received += curr.receivedBudget;
+                acc[group].used += curr.actualUsed;
+                return acc;
+            }, {});
+
+            const groupLabels = Object.keys(groupData);
+            const groupReceived = groupLabels.map(g => groupData[g].received);
+            const groupUsed = groupLabels.map(g => groupData[g].used);
+
+            chartInstances['chart-group'] = new Chart(document.getElementById('chart-group'), {
+                type: 'bar',
+                data: {
+                    labels: groupLabels,
+                    datasets: [
+                        { label: 'งบที่ได้รับ', data: groupReceived, backgroundColor: 'rgba(52, 211, 153, 0.8)' },
+                        { label: 'งบที่ใช้ไป', data: groupUsed, backgroundColor: 'rgba(251, 191, 36, 0.8)' }
+                    ]
+                },
+                options: { responsive: true, scales: { x: { stacked: false }, y: { beginAtZero: true } } }
+            });
+
+
+            // 3. Prepare data for Chart 3: Plan
+            const planData = appData.planningSummary.reduce((acc, curr) => {
+                const plan = curr.plan || 'N/A';
+                acc[plan] = acc[plan] || { received: 0, used: 0 };
+                acc[plan].received += curr.receivedBudget;
+                acc[plan].used += curr.actualUsed;
+                return acc;
+            }, {});
+
+            const planLabels = Object.keys(planData);
+            const planReceived = planLabels.map(p => planData[p].received);
+            const planRemaining = planLabels.map(p => planData[p].received - planData[p].used);
+
+
+            chartInstances['chart-plan'] = new Chart(document.getElementById('chart-plan'), {
+                type: 'pie',
+                data: {
+                    labels: planLabels,
+                    datasets: [{
+                        label: 'งบประมาณคงเหลือตามแผนงาน',
+                        data: planRemaining,
+                        backgroundColor: [
+                            'rgba(14, 165, 233, 0.8)', // Sky 500
+                            'rgba(249, 115, 22, 0.8)', // Orange 600
+                            'rgba(139, 92, 246, 0.8)', // Violet 500
+                            'rgba(6, 182, 212, 0.8)', // Cyan 600
+                            'rgba(234, 179, 8, 0.8)', // Yellow 600
+                            'rgba(236, 72, 153, 0.8)'  // Pink 500
+                        ],
+                        hoverOffset: 4
+                    }]
+                },
+                options: { responsive: true, plugins: { legend: { position: 'right' } } }
+            });
+        }
+
+        // --- Form Submission Handlers ---
+
+        document.getElementById('notification-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const data = {
+                plan: document.getElementById('noti-plan').value,
+                productProject: document.getElementById('noti-product-project').value,
+                mainActivity: document.getElementById('noti-main-activity').value,
+                projectCode: document.getElementById('noti-project-code').value,
+                budgetCode: document.getElementById('noti-budget-code').value,
+            };
+
+            const result = await fetchAppsScript('saveNotification', data);
+            const msgEl = document.getElementById('notification-message');
+            if (result.success) {
+                msgEl.textContent = 'บันทึกข้อมูลแจ้งจัดสรรสำเร็จ!';
+                this.reset();
+                await loadInitialData();
+            } else {
+                msgEl.textContent = 'บันทึกไม่สำเร็จ: ' + result.message;
+                msgEl.className = 'mt-4 text-red-600 font-semibold';
+            }
+        });
+
+        document.getElementById('allocation-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const data = {
+                rowId: document.getElementById('allo-row-id').value || null,
+                plan: document.getElementById('allo-plan').value,
+                productProject: document.getElementById('allo-product-project').value,
+                mainActivity: document.getElementById('allo-main-activity').value,
+                projectCode: document.getElementById('allo-project-code').value,
+                budgetCode: document.getElementById('allo-budget-code').value,
+                projectName: document.getElementById('allo-project-name').value,
+                budgetAmount: document.getElementById('allo-budget-amount').value,
+                group: document.getElementById('allo-group').value,
+            };
+
+            const result = await fetchAppsScript('saveAllocation', data);
+            const msgEl = document.getElementById('allocation-message');
+            if (result.success) {
+                msgEl.textContent = data.rowId ? 'แก้ไขการจัดสรรงบประมาณสำเร็จ!' : 'บันทึกการจัดสรรงบประมาณสำเร็จ!';
+                this.reset();
+                document.getElementById('allo-row-id').value = '';
+                await loadInitialData();
+            } else {
+                msgEl.textContent = 'บันทึกไม่สำเร็จ: ' + result.message;
+                msgEl.className = 'mt-4 text-red-600 font-semibold';
+            }
+        });
+
+        document.getElementById('tracking-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const data = {
+                rowId: document.getElementById('track-row-id').value || null,
+                project: document.getElementById('track-project-name').value,
+                activity: document.getElementById('track-activity').value,
+                group: document.getElementById('track-group').value,
+                commitment: document.getElementById('track-commitment').value,
+                actualExpense: document.getElementById('track-actual-expense').value,
+                expenseCategory: document.getElementById('track-expense-category').value,
+            };
+
+            const result = await fetchAppsScript('saveBudgetTracking', data);
+            const msgEl = document.getElementById('tracking-message');
+            if (result.success) {
+                msgEl.textContent = data.rowId ? 'แก้ไขรายการคุมงบประมาณสำเร็จ!' : 'บันทึกรายการคุมงบประมาณสำเร็จ!';
+                this.reset();
+                document.getElementById('track-row-id').value = '';
+                document.getElementById('track-remaining').textContent = '0.00';
+                document.getElementById('track-remaining').className = 'font-bold text-lg text-primary';
+                await loadInitialData();
+            } else {
+                msgEl.textContent = 'บันทึกไม่สำเร็จ: ' + result.message;
+                msgEl.className = 'mt-4 text-red-600 font-semibold';
+            }
+        });
+
+        // Add listeners for tracking remaining calculation
+        document.getElementById('track-commitment').addEventListener('input', calculateTrackingRemaining);
+        document.getElementById('track-actual-expense').addEventListener('input', calculateTrackingRemaining);
+
+
+        // --- Export Function ---
+
+        function exportToExcel() {
+            // Function to generate CSV data (simplest client-side export)
+            const data = appData.planningSummary;
+            if (data.length === 0) {
+                alert('ไม่พบข้อมูลที่จะส่งออก');
+                return;
+            }
+
+            let csv = "\ufeff"; // BOM for Thai characters in Excel
+            const headers = ["กลุ่มงาน", "ผลผลิต/โครงการ", "กิจกรรมหลัก", "โครงการ", "รหัสโครงการ", "งบประมาณที่ได้รับ", "งบประมาณใช้จริง", "งบประมาณคงเหลือ"];
+            csv += headers.join(',') + '\n';
+
+            data.forEach(item => {
+                const remaining = item.receivedBudget - item.actualUsed;
+                const row = [
+                    item.group,
+                    item.productProject,
+                    item.mainActivity,
+                    item.project,
+                    item.projectCode,
+                    item.receivedBudget,
+                    item.actualUsed,
+                    remaining
+                ].map(d => `"${String(d).replace(/"/g, '""')}"`).join(',');
+                csv += row + '\n';
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute('download', 'Budget_Planning_Summary.csv');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // --- Menu Handlers ---
+        document.getElementById('open-menu').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.remove('-translate-x-full');
+            document.getElementById('open-menu').classList.add('hidden');
+        });
+
+        document.getElementById('close-menu').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.add('-translate-x-full');
+            document.getElementById('open-menu').classList.remove('hidden');
+        });
+
+        // --- Initialization ---
+        window.onload = function() {
+            loadInitialData();
+            showView('planning'); // Default view
+        };
+
+    </script>
+</body>
+</html>
